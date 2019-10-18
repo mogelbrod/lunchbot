@@ -1,5 +1,6 @@
 /* global fetch */
 const { parse, tagToString, decodeEntities } = require('./html')
+const { linkifyTarget } = require('./target')
 
 module.exports = fetchData
 
@@ -14,6 +15,6 @@ async function fetchData(target, week) {
     text = target.formatter(text)
   }
 
-  return `<${target.url}|*${target.name}*>:\n` + text
+  return linkifyTarget(target) + ':\n' + text
 }
 

@@ -1,6 +1,6 @@
 /* global addEventListener fetch Response */
 const { RequestError } = require('./helpers')
-const getTarget = require('./target')
+const { targets, getTarget, linkifyTarget } = require('./target')
 const fetchData = require('./fetch')
 
 addEventListener('fetch', event => {
@@ -40,7 +40,7 @@ async function handleRequest(event) {
     }
 
     if (!restaurant) {
-      throw new RequestError(`No restaurant specified`)
+      throw new RequestError(`No restaurant specified. Try any of:\n${targetList()}`)
     } else if (typeof restaurant !== 'string') {
       const type = {}.toString.call(restaurant).slice(8, -1)
       throw new RequestError(`Expected restaurant parameter to be a String, got ${type}`)
@@ -48,7 +48,7 @@ async function handleRequest(event) {
 
     const target = getTarget(restaurant)
     if (!target) {
-      throw new RequestError(`Unknown restaurant`)
+      throw new RequestError(`Unknown restaurant. Try any of:\n${targetList()}`)
     }
 
     let resultPromise = fetchData(target, true)
@@ -76,7 +76,7 @@ async function handleRequest(event) {
           event.waitUntil(delayedResponse)
           return toResponse({
             response_type: 'ephemeral',
-            text: `Fetching menu for ${target.name}, just a second.`
+            text: `Fetching menu for _${target.name}_, just a moment.`
           })
         }
 
@@ -93,7 +93,7 @@ async function handleRequest(event) {
     }
     return toResponse({
       response_type: 'ephemeral',
-      text: 'Error: ' + error.message,
+      text: '*Error:* ' + error.message,
       stack: error.stack,
     }, slackResponseUrl ? 200 : error.status || 500)
   }
@@ -122,4 +122,14 @@ function stringify(input) {
   return typeof input === 'string'
     ? input
     : JSON.stringify(input, null, 2)
+}
+
+function targetList() {
+  return targets.map(t => {
+    return [
+      '-',
+      linkifyTarget(t),
+      t.aliases.length ? `(_${t.aliases.join(', ')})_` : ''
+    ].join(' ')
+  }).join('\n')
 }
