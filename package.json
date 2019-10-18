@@ -8,6 +8,8 @@
     "start": "webpack --mode development && npx nodemon --watch dist/main.js --exec \"cloudflare-worker-local dist/main.js localhost:3000 4000\" --signal SIGHUP",
     "watch": "webpack --mode production --watch",
     "worker": "cloudworker dist/main.js -r -p 4000 -d",
+    "test-proxy": "nc -l 4001",
+    "test": "curl http://localhost:4000 -d 'text=folkparken&response_url=http://localhost:4001/'",
     "deploy": "npm run build && curl \"https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/$CF_WORKER_NAME\" -X PUT -H \"X-Auth-Email: $CF_EMAIL\" -H \"X-Auth-Key: $CF_AUTH_KEY\" -F 'script=@-;type=application/javascript' -F \"metadata={\\\"body_part\\\": \\\"script\\\", \\\"bindings\\\": []};type=application/json\" < dist/main.js"
   },
   "devDependencies": {
