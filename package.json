@@ -1,0 +1,46 @@
+{
+  "private": true,
+  "name": "lunchbot",
+  "version": "0.1.0",
+  "description": "A Cloudflare Worker",
+  "scripts": {
+    "build": "webpack --mode production",
+    "start": "webpack --mode development && npx nodemon --watch dist/main.js --exec \"cloudflare-worker-local dist/main.js localhost:3000 4000\" --signal SIGHUP",
+    "watch": "webpack --mode production --watch",
+    "worker": "cloudworker dist/main.js -r -p 4000 -d",
+    "deploy": "npm run build && curl \"https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/$CF_WORKER_NAME\" -X PUT -H \"X-Auth-Email: $CF_EMAIL\" -H \"X-Auth-Key: $CF_AUTH_KEY\" -F 'script=@-;type=application/javascript' -F \"metadata={\\\"body_part\\\": \\\"script\\\", \\\"bindings\\\": []};type=application/json\" < dist/main.js"
+  },
+  "devDependencies": {
+    "@dollarshaveclub/cloudworker": "^0.1.2",
+    "babel-eslint": "^10.0.1",
+    "babel-plugin-transform-es2015-modules-commonjs": "^6.26.2",
+    "cloudflare-worker-local": "^1.9.0",
+    "eslint": "^5.11.1",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^8.0.0",
+    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "express": "^4.16.4",
+    "htmljs-parser": "^2.7.0",
+    "husky": "^1.3.1",
+    "lint-staged": "^8.1.0",
+    "nodemon": "^1.18.9",
+    "webpack": "^4.28.3",
+    "webpack-bundle-analyzer": "^3.6.0",
+    "webpack-cli": "^3.1.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "npx eslint --fix",
+      "git add"
+    ]
+  },
+  "dependencies": {
+    "htmlparser2": "^4.0.0"
+  }
+}
