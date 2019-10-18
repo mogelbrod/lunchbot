@@ -12,6 +12,10 @@ async function handleRequest(event) {
   const url = new URL(request.url)
   let restaurant = null
   let slackResponseUrl = null
+  let createBody = text => ({
+    response_type: text instanceof Error ? 'ephemeral' : 'in_channel',
+    text: String(text),
+  })
 
   console.log(request.method, request.url)
 
@@ -28,6 +32,7 @@ async function handleRequest(event) {
         restaurant = json.restaurant
         break
       default:
+        createBody = text => String(text)
         restaurant = url.pathname.replace('/', '')
         switch (url.pathname) {
           case '/robots.txt':
@@ -67,7 +72,7 @@ async function handleRequest(event) {
               headers: {
                 'Content-Type': 'application/json',
               },
-              body: toSlackMessage(text),
+              body: stringify(createBody(text)),
             }).then(() => {
               console.log('sent delayed response')
             })
@@ -81,41 +86,27 @@ async function handleRequest(event) {
         }
 
         console.log('non-delayed response')
-        return toResponse(toSlackMessage(outcome))
+        return toResponse(createBody(outcome))
       })
     }
 
     console.log('regular response')
-    return resultPromise.then(result => toResponse(toSlackMessage(result)))
+    return resultPromise.then(result => toResponse(createBody(result)))
   } catch (error) {
     if (error instanceof Response) {
       return error
     }
-    return toResponse({
-      response_type: 'ephemeral',
-      text: '*Error:* ' + error.message,
-      stack: error.stack,
-    }, slackResponseUrl ? 200 : error.status || 500)
+    return toResponse(createBody(error), slackResponseUrl ? 200 : error.status || 500)
   }
 }
 
-function toSlackMessage(text) {
-  return stringify({
-    response_type: 'in_channel',
-    text,
-  })
-}
-
 function toResponse(body, status = 200) {
-  return new Response(
-    stringify(body),
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      status,
-    }
-  )
+  let headers = {}
+  if (typeof body !== 'string') {
+    body = stringify(body)
+    headers['Content-Type'] = 'application/json'
+  }
+  return new Response(body, { headers, status })
 }
 
 function stringify(input) {

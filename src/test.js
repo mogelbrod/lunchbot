@@ -15,7 +15,7 @@ if (!queries.length) {
 queries.forEach(query => {
   const target = getTarget(query)
   fetchData(target).then(
-    res => console.log('============== '+target + ' ==============\n'+res),
-    err => console.error('============== '+target + ' ==============\n'+err.stack),
+    res => console.log('============== '+target.name + ' ==============\n'+res),
+    err => console.error('============== '+target.name + ' ==============\n'+err.stack),
   )
 })
