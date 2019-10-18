@@ -6,4 +6,8 @@ module.exports = {
   plugins: [
     // new BundleAnalyzerPlugin()
   ],
+
+  optimization: {
+    minimize: false,
+  },
 }
