@@ -1,7 +1,7 @@
 /* global addEventListener fetch Response */
 const { RequestError } = require('./helpers')
-const { targets, getTarget, linkifyTarget } = require('./target')
-const fetchData = require('./fetch')
+const execute = require('./execute')
+const { linkifyRestaurant } = require('./restaurants')
 
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event))
@@ -10,7 +10,7 @@ addEventListener('fetch', event => {
 async function handleRequest(event) {
   const { request } = event
   const url = new URL(request.url)
-  let restaurant = null
+  let query = null
   let slackResponseUrl = null
   let createBody = text => ({
     response_type: text instanceof Error ? 'ephemeral' : 'in_channel',
@@ -23,40 +23,28 @@ async function handleRequest(event) {
     switch (request.headers.get('Content-Type')) {
       case 'application/x-www-form-urlencoded':
         const body = await request.formData()
-        restaurant = body.get('text')
+        query = body.get('text')
         slackResponseUrl = body.get('response_url')
         break
       case 'application/json':
       case 'text/json':
         const json = await request.json()
-        restaurant = json.restaurant
+        query = json.query
         break
       default:
         createBody = text => String(text)
-        restaurant = url.pathname.replace('/', '')
+        query = url.pathname.replace('/', '')
         switch (url.pathname) {
           case '/robots.txt':
           case '/favicon.ico':
             return new Response(null, 404)
         }
-        if (!restaurant.length) {
+        if (!query.length) {
           throw new RequestError(`Specify a query via the URL path (ex: /restaurantName)`)
         }
     }
 
-    if (!restaurant) {
-      throw new RequestError(`No restaurant specified. Try any of:\n${targetList()}`)
-    } else if (typeof restaurant !== 'string') {
-      const type = {}.toString.call(restaurant).slice(8, -1)
-      throw new RequestError(`Expected restaurant parameter to be a String, got ${type}`)
-    }
-
-    const target = getTarget(restaurant)
-    if (!target) {
-      throw new RequestError(`Unknown restaurant. Try any of:\n${targetList()}`)
-    }
-
-    let resultPromise = fetchData(target, true)
+    const { restaurant, resultPromise } = execute(query)
 
     if (slackResponseUrl) {
       return Promise.race([
@@ -81,7 +69,7 @@ async function handleRequest(event) {
           event.waitUntil(delayedResponse)
           return toResponse({
             response_type: 'ephemeral',
-            text: `Fetching menu for _${target.name}_, just a moment.`
+            text: `Fetching menu for _${linkifyRestaurant(restaurant)}_, just a moment.`
           })
         }
 
@@ -113,14 +101,4 @@ function stringify(input) {
   return typeof input === 'string'
     ? input
     : JSON.stringify(input, null, 2)
-}
-
-function targetList() {
-  return targets.map(t => {
-    return [
-      '-',
-      linkifyTarget(t),
-      t.aliases.length ? `(_${t.aliases.join(', ')})_` : ''
-    ].join(' ')
-  }).join('\n')
 }

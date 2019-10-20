@@ -1,4 +1,4 @@
-const targets = [
+const restaurants = [
   {
     name: 'Folkparken',
     aliases: ['fp'],
@@ -17,17 +17,17 @@ const targets = [
   },
 ]
 
-function linkifyTarget(target) {
+function linkifyRestaurant(target) {
   return `<${target.url}|*${target.name}*>`
 }
 
-function getTarget(query) {
+function getRestaurant(query) {
   const normalizedQuery = query.toLowerCase()
 
   let target
   let minDistance = 9999
 
-  targets.forEach(t => [t.name].concat(t.aliases).forEach(term => {
+  restaurants.forEach(t => [t.name].concat(t.aliases).forEach(term => {
     if (term.toLowerCase().indexOf(normalizedQuery) >= 0) {
       const distance = term.length - normalizedQuery.length
       if (distance < minDistance) {
@@ -40,6 +40,16 @@ function getTarget(query) {
   return target
 }
 
+function restaurantList() {
+  return restaurants.map(t => {
+    return [
+      '-',
+      linkifyRestaurant(t),
+      t.aliases.length ? `(_${t.aliases.join(', ')})_` : ''
+    ].join(' ')
+  }).join('\n')
+}
+
 function classSelector(className) {
   return (tag) => {
     const attr = tag.attributes.find(attr => attr.name === 'class')
@@ -48,7 +58,8 @@ function classSelector(className) {
 }
 
 module.exports = {
-  getTarget,
-  targets,
-  linkifyTarget,
+  getRestaurant,
+  restaurants,
+  restaurantList,
+  linkifyRestaurant,
 }

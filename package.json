@@ -5,8 +5,8 @@
   "description": "A Cloudflare Worker",
   "scripts": {
     "build": "webpack --mode production",
-    "start": "webpack --mode production --watch",
-    "worker": "cloudworker dist/main.js -r -p 4000 -d",
+    "watch": "webpack --mode production --watch",
+    "start": "cloudworker dist/main.js -r -p 4000 -d",
     "test-proxy": "nc -l 4001",
     "test": "curl http://localhost:4000 -d 'text=folkparken&response_url=http://localhost:4001/'",
     "deploy": "npm run build && curl \"https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/workers/scripts/$CF_WORKER_NAME\" -X PUT -H \"X-Auth-Email: $CF_EMAIL\" -H \"X-Auth-Key: $CF_AUTH_KEY\" -F 'script=@-;type=application/javascript' -F \"metadata={\\\"body_part\\\": \\\"script\\\", \\\"bindings\\\": []};type=application/json\" < dist/main.js"
@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "htmljs-parser": "^2.7.0",
+    "node-fetch": "^2.6.0",
     "webpack": "^4.28.3",
     "webpack-bundle-analyzer": "^3.6.0",
     "webpack-cli": "^3.1.2"
