@@ -13,25 +13,22 @@ function parse(htmlString, targetSelector) {
 
   const parser = createParser({
     onOpenTag: (tag) => {
-      if (stack.length || targetSelector(tag)) {
-        tag.children = []
-        stack.push(tag)
-      }
+      tag.children = []
+      stack.push(tag)
+      root = root || targetSelector(tag, stack)
     },
     onCloseTag: (tag) => {
       const closed = stack.pop()
       if (!closed) { return }
       if (stack.length) {
         stack[stack.length - 1].children.push(closed)
-      } else {
-        root = closed
       }
     },
     onText: (node) => {
-      if (!stack.length) { return }
       const text = cleanupWhitespace(node.value)
       if (text) {
         stack[stack.length - 1].children.push(text)
+        root = root || targetSelector({ tagName: 'text', attributes: [], text }, stack)
       }
     }
   }, {
