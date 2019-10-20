@@ -1,5 +1,5 @@
 const { RequestError } = require('./helpers')
-const { getRestaurant, restaurantList } = require('./restaurants')
+const { getRestaurant, restaurantList, linkifyRestaurant } = require('./restaurants')
 const { parse, tagToString, decodeEntities } = require('./html')
 
 module.exports = execute
@@ -19,7 +19,10 @@ function execute(query) {
 
   return {
     restaurant,
-    resultPromise: fetchData(restaurant, true),
+    resultPromise: (restaurant.parse !== false
+      ? fetchData(restaurant, true)
+      : Promise.resolve(linkifyRestaurant(restaurant, '_Link to menu_'))
+    ),
   }
 }
 

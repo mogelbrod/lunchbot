@@ -1,14 +1,17 @@
 // eslint-disable-next-line no-unused-vars
 const selectors = module.exports = {
-  className(className) {
+  tagName(tagName) {
+    return tag => (tag.tagName === tagName ? tag : null)
+  },
+  attribute(attributeName, value) {
     return (tag) => {
-      const attr = tag.attributes.find(attr => attr.name === 'class')
-      return attr && attr.literalValue.includes(className)
+      const attr = tag.attributes.find(attr => attr.name === attributeName)
+      return attr && attr.literalValue.includes(value)
         ? tag : null
     }
   },
-  tagName(tagName) {
-    return tag => (tag.tagName === tagName ? tag : null)
+  className(className) {
+    return selectors.attribute('class', className)
   },
   textNodeParent(textRegex, parentSelector) {
     return (tag, stack) => {

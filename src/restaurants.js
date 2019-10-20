@@ -2,11 +2,21 @@ const selectors = require('./selectors')
 
 const restaurants = [
   {
-    name: 'Folkparken',
-    aliases: ['fp'],
-    url: 'https://restaurangfolkparken.se/lunch/',
-    selector: selectors.className('entry-content'),
-    formatter: (str) => str.replace(/\n\n([A-ZÀ-ÖØ-ÞŒŠŸŽ])/ig, '\n$1')
+    name: 'Austin Food Works',
+    aliases: ['afw'],
+    url: 'http://norrtull.austinfoodworks.se/#menu',
+    selector: selectors.attribute('id', 'menu-tab1'),
+    formatter: (str) => str
+      // Remove static intro/outro
+      .replace(/^.*Friendly staff!\s*/is, '\n\n')
+      .replace(/\n+\s*Requests for table reservations.+/ims, '')
+      // Reformat TITLES
+      .replace(/\n{2,}\s*([A-Z ]{4,})/g, (_, m) => {
+        return `\n\n*${capitalize(m.substr(0, m.length - 1))}*\n${m[m.length - 1]}`
+      })
+      // Move price tag
+      .replace(/\n+(\d+);?-?(\n+|$)/g, '\n_$1 kr_$2')
+      .trim()
   },
   {
     name: 'Bar Central',
@@ -14,8 +24,16 @@ const restaurants = [
     url: 'http://www.barcentral.se/birger-jarlsgatan-41/lunch',
     selector: selectors.className('side-column left'),
     formatter: (str) => str.replace(/^[A-ZÀ-ÖØ-ÞŒŠŸŽ()[\]&#.,; 0-9-]{3,}$/gm, m => {
-      return '\n*' + m[0] + m.slice(1).toLowerCase() + '*'
+      // Reformat TITLES
+      return `\n*${capitalize(m)}*`
     })
+  },
+  {
+    name: 'Folkparken',
+    aliases: ['fp'],
+    url: 'https://restaurangfolkparken.se/lunch/',
+    selector: selectors.className('entry-content'),
+    formatter: (str) => str.replace(/\n\n([A-ZÀ-ÖØ-ÞŒŠŸŽ])/ig, '\n$1')
   },
   {
     name: 'Knut Bar',
@@ -33,7 +51,17 @@ const restaurants = [
     formatter: (str) => str
       .replace(/\n+_([^\n_]+)_\n{1,}/gm, '\n\n*$1*\n') // correct spacing for day headers (+ switch _ to *)
   },
+  {
+    name: 'Rolfs Kök',
+    aliases: ['rk'],
+    url: 'http://www.rolfskok.se/meny/Aktuell_lunchmeny.pdf',
+    parse: false,
+  },
 ]
+
+function capitalize(str) {
+  return str[0] + str.slice(1).toLowerCase()
+}
 
 function getRestaurant(query) {
   const normalizedQuery = query.toLowerCase()
@@ -64,8 +92,8 @@ function restaurantList() {
   }).join('\n')
 }
 
-function linkifyRestaurant(target) {
-  return `<${target.url}|*${target.name}*>`
+function linkifyRestaurant(target, text = target.name) {
+  return `<${target.url}|*${text}*>`
 }
 
 module.exports = {
