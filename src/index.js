@@ -44,7 +44,11 @@ async function handleRequest(event) {
         }
     }
 
-    const { restaurant, resultPromise } = execute(query)
+    let { restaurant, resultPromise } = execute(query)
+
+    resultPromise = resultPromise.then(res => {
+      return linkifyRestaurant(restaurant) + ':\n' + res
+    })
 
     if (slackResponseUrl) {
       return Promise.race([
