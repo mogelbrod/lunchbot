@@ -26,7 +26,8 @@ const restaurants = [
     formatter: (str) => str.replace(/^[A-ZÀ-ÖØ-ÞŒŠŸŽ()[\]&#.,; 0-9-]{3,}$/gm, m => {
       // Reformat TITLES
       return `\n*${capitalize(m)}*`
-    })
+    }),
+    // ignoreRegex: 'VECKANS LUNCH',
   },
   {
     name: 'Folkparken',
@@ -40,16 +41,18 @@ const restaurants = [
     aliases: ['kb'],
     url: 'https://restaurangknut.se/knut-bar/#menu',
     selector: selectors.textNodeParent(/Lunch V\./i, selectors.tagName('div')),
-    formatter: (str) => str
-      .replace(/\n+_([^\n_]+)_\n{1,}/gm, '\n\n*$1*\n') // correct spacing for day headers (+ switch _ to *)
+    // Correct spacing for day headers (+ switch _ to *)
+    formatter: (str) => str.replace(/\n+_([^\n_]+)_\n{1,}/gm, '\n\n*$1*\n'),
+    // ignoreRegex: 'Lunch V',
   },
   {
     name: 'Knut Restaurant',
     aliases: ['kr'],
     url: 'https://restaurangknut.se/knut-restaurang/#menu',
     selector: selectors.textNodeParent(/Lunch V\./i, selectors.tagName('div')),
-    formatter: (str) => str
-      .replace(/\n+_([^\n_]+)_\n{1,}/gm, '\n\n*$1*\n') // correct spacing for day headers (+ switch _ to *)
+    // Correct spacing for day headers (+ switch _ to *)
+    formatter: (str) => str.replace(/\n+_([^\n_]+)_\n{1,}/gm, '\n\n*$1*\n'),
+    // ignoreRegex: 'Lunch V',
   },
   {
     name: 'Rolfs Kök',

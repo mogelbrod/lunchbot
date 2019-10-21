@@ -10,6 +10,13 @@ addEventListener('fetch', event => {
 async function handleRequest(event) {
   const { request } = event
   const url = new URL(request.url)
+
+  switch (url.pathname) {
+    case '/robots.txt':
+    case '/favicon.ico':
+      return new Response(null, { status: 404 })
+  }
+
   let query = null
   let slackResponseUrl = null
   let createBody = text => ({
@@ -33,18 +40,13 @@ async function handleRequest(event) {
         break
       default:
         createBody = text => String(text)
-        query = url.pathname.replace('/', '')
-        switch (url.pathname) {
-          case '/robots.txt':
-          case '/favicon.ico':
-            return new Response(null, 404)
-        }
+        query = url.pathname.substr(1).replace(/[ /]+/g, ' ').trim()
         if (!query.length) {
           throw new RequestError(`Specify a query via the URL path (ex: /restaurantName)`)
         }
     }
 
-    let { restaurant, resultPromise } = execute(query)
+    let { restaurant, scope, resultPromise } = execute(query)
 
     resultPromise = resultPromise.then(res => {
       return linkifyRestaurant(restaurant) + ':\n' + res
@@ -69,11 +71,10 @@ async function handleRequest(event) {
               console.log('sent delayed response')
             })
           })
-          // TODO: Might have to be moved outside promise
           event.waitUntil(delayedResponse)
           return toResponse({
             response_type: 'ephemeral',
-            text: `Fetching menu for _${linkifyRestaurant(restaurant)}_, just a moment.`
+            text: `Fetching ${scope} for _${linkifyRestaurant(restaurant)}_, just a moment.`
           })
         }
 
@@ -94,7 +95,9 @@ async function handleRequest(event) {
 
 function toResponse(body, status = 200) {
   let headers = {}
-  if (typeof body !== 'string') {
+  if (typeof body === 'string') {
+    headers['Content-Type'] = 'text/plain; charset=utf-8'
+  } else {
     body = stringify(body)
     headers['Content-Type'] = 'application/json'
   }

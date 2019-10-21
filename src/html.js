@@ -26,7 +26,7 @@ function parse(htmlString, targetSelector) {
     },
     onText: (node) => {
       const text = cleanupWhitespace(node.value)
-      if (text) {
+      if (text && stack.length) {
         stack[stack.length - 1].children.push(text)
         root = root || targetSelector({ tagName: 'text', attributes: [], text }, stack)
       }
