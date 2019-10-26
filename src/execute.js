@@ -1,39 +1,87 @@
-const { RequestError } = require('./helpers')
-const { getRestaurant, restaurantList, linkifyRestaurant } = require('./restaurants')
+const { RequestError, timeout } = require('./helpers')
 const { parse, tagToString, decodeEntities } = require('./html')
-const { WEEKDAYS, WEEKDAY_REGEX, toWeekDay } = require('./weekday')
+const { RESTAURANTS, getRestaurant, restaurantList, linkifyRestaurant } = require('./restaurants')
+const { WEEKDAYS, WEEKDAY_REGEX, isWeekDay, toWeekDay } = require('./weekday')
 
 module.exports = execute
 
 function execute(query) {
-  if (!query) {
-    throw new RequestError(`No restaurant specified. Try any of:\n${restaurantList()}`)
-  } else if (typeof query !== 'string') {
+  if (typeof query !== 'string') {
     const type = {}.toString.call(query).slice(8, -1)
     throw new RequestError(`Expected restaurant parameter to be a String, got ${type}`)
   }
+
+  query = query || 'today'
 
   const terms = query.split(/\s+/)
   const weekday = toWeekDay(terms[0])
   if (weekday != null) { terms.shift() }
 
-  const restaurant = getRestaurant(terms.join(' '), weekday)
-  if (!restaurant) {
-    throw new RequestError(`Unknown restaurant. Try any of:\n${restaurantList()}`)
+  const restaurant = getRestaurant(terms.join(' '))
+
+  if (restaurant) {
+    // Weekly/daily menu for a single restaurant
+    return getMenu(restaurant, weekday)
   }
 
+  if (weekday) {
+    // Aggregate daily menu for all restaurants
+    const requests = RESTAURANTS.map(restaurant => getMenu(restaurant, weekday, true))
+    return {
+      scope: WEEKDAYS[weekday] + ' menus',
+      promise: Promise.allSettled(requests.map(r => r.promise)).then(outcomes => {
+        const buffer = []
+        const failed = []
+
+        outcomes.forEach((outcome, i) => {
+          if (outcome.status === 'fulfilled') {
+            buffer.push(outcome.value)
+          } else {
+            const link = linkifyRestaurant(requests[i].restaurant)
+            const { message } = outcome.reason
+            failed.push(`- ${link}: ${message}`)
+          }
+        })
+
+        if (failed.length) {
+          buffer.push(`*Unavailable restaurants*\n` + failed.join('\n'))
+        }
+
+        return buffer.join('\n\n')
+      })
+    }
+  }
+
+  const usage = `
+  *Usage:*
+  - \`/lunch\`: Menu of the day for all restaurants
+  - \`/lunch monday\`: Monday/Tuesday/Wednesday/Thursday/Friday menu for all restaurants
+  - \`/lunch restaurant\`: Weekly menu for \`resturant\` (or _alias_)
+  *Available restaurants:*
+  ${restaurantList()}
+  `.replace(/^\s+/gm, '')
+
+  throw new RequestError(usage)
+}
+
+function getMenu(restaurant, section = null, omitHeaders = false) {
+  const menuType = isWeekDay(section) ? WEEKDAYS[section] : 'weekly'
+  const scope = [ linkifyRestaurant(restaurant), menuType, 'menu' ].join(' ')
   return {
     restaurant,
-    scope: weekday ? WEEKDAYS[weekday] + ' menu' : 'weekly menu',
-    resultPromise: (restaurant.parse !== false
-      ? fetchData(restaurant, weekday)
-      : Promise.resolve(linkifyRestaurant(restaurant, '_Link to menu_'))
-    ),
+    scope,
+    promise: fetchMenu(restaurant, section, omitHeaders).then(menu => {
+      return `${scope}:\n${menu}`
+    }),
   }
 }
 
-async function fetchData(restaurant, section = null) {
-  const res = await fetch(restaurant.url)
+async function fetchMenu(restaurant, section = null, omitHeaders = false) {
+  if (!restaurant.selector) {
+    return Promise.resolve(linkifyRestaurant(restaurant, '_Link to menu_'))
+  }
+
+  const res = await timeout(fetch(restaurant.url), 5e3)
   const html = await res.text()
 
   const root = parse(html, restaurant.selector)
@@ -50,7 +98,7 @@ async function fetchData(restaurant, section = null) {
 
   const ignored = restaurant.ignoreRegex ? [restaurant.ignoreRegex] : []
 
-  if (typeof section === 'number' && section >= 0 && section < 7) {
+  if (isWeekDay(section)) {
     const ignoredWeekdays = WEEKDAY_REGEX.slice()
     // Allow today through
     ignoredWeekdays.splice(section, 1)
@@ -58,13 +106,13 @@ async function fetchData(restaurant, section = null) {
   }
 
   if (ignored.length) {
-    text = filterSections(text, new RegExp(ignored.join('|'), 'i'))
+    text = filterSections(text, new RegExp(ignored.join('|'), 'i'), omitHeaders)
   }
 
   return text.trim()
 }
 
-function filterSections(text, ignoredRegex) {
+function filterSections(text, ignoredRegex, omitHeaders = false) {
   let buffer = ''
   const titleRegex = new RegExp(`^\\*([^\n\\*]+)\\*\n`, 'gmi')
   let appendFrom = null
@@ -81,7 +129,7 @@ function filterSections(text, ignoredRegex) {
       continue
     }
 
-    appendFrom = m.index
+    appendFrom = m.index + (omitHeaders ? m[0].length : 0)
   }
 
   if (appendFrom != null) {
@@ -89,35 +137,4 @@ function filterSections(text, ignoredRegex) {
   }
 
   return buffer
-}
-
-// eslint-disable-next-line no-unused-vars
-function splittingFilterSections(text, ignoredRegex) {
-  const regex = new RegExp(`^\\*([^\n\\*]+)\\*\n`, 'mi')
-  const parts = text.split(regex)
-
-  let title = null
-  const sections = {}
-
-  for (let i = 0; i < parts.length; i++) {
-    const trimmed = parts[i].trim()
-    if (!trimmed.length) {
-      // Skip sections with missing title or body
-      if (title) { title = null }
-    } else if (!title) {
-      if (ignoredRegex && ignoredRegex.test(trimmed)) {
-        // Ignore this section
-        i += 1
-      } else {
-        title = trimmed
-      }
-    } else {
-      sections[title] = trimmed
-      title = null
-    }
-  }
-
-  return Object.keys(sections)
-    .map(title => `*${title}*\n${sections[title]}\n`)
-    .join('\n')
 }

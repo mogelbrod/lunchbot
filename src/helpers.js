@@ -7,8 +7,17 @@ class RequestError extends Error {
   }
 }
 
+function timeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Timeout reached after ${ms} ms`)), ms)
+    })
+  ])
+}
+
 function tokenize(str) {
-  str = str.replace(/”/g, "“")
+  str = str.replace(/”/g, '“')
   const regexp = /([^\s'"“]+(['"“])([^\2]*?)\2)|[^\s'"“]+|(['"“])([^\4]*?)\4/gi
   const tokens = []
   let match
@@ -40,6 +49,7 @@ function stringify(obj) {
 
 module.exports = {
   RequestError,
+  timeout,
   slackDate,
   stringify,
   tokenize,

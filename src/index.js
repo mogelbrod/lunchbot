@@ -1,7 +1,6 @@
 /* global addEventListener fetch Response */
 const { RequestError } = require('./helpers')
 const execute = require('./execute')
-const { linkifyRestaurant } = require('./restaurants')
 
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event))
@@ -20,11 +19,11 @@ async function handleRequest(event) {
   let query = null
   let slackResponseUrl = null
   let createBody = text => ({
-    response_type: text instanceof Error ? 'ephemeral' : 'in_channel',
-    text: String(text),
+    response_type: 'in_channel',
+    text: stringify(text),
   })
 
-  console.log(request.method, request.url)
+  console.log(request.method, decodeURI(request.url))
 
   try {
     switch (request.headers.get('Content-Type')) {
@@ -39,27 +38,23 @@ async function handleRequest(event) {
         query = json.query
         break
       default:
-        createBody = text => String(text)
-        query = url.pathname.substr(1).replace(/[ /]+/g, ' ').trim()
+        createBody = text => stringify(text)
+        query = decodeURI(url.pathname.substr(1)).replace(/[ /]+/g, ' ').trim()
         if (!query.length) {
-          throw new RequestError(`Specify a query via the URL path (ex: /restaurantName)`)
+          throw new RequestError(`Specify a query via the URL path (ex: /today or /restaurantName)`)
         }
     }
 
-    let { restaurant, scope, resultPromise } = execute(query)
-
-    resultPromise = resultPromise.then(res => {
-      return linkifyRestaurant(restaurant) + ':\n' + res
-    })
+    let { scope, promise } = execute(query)
 
     if (slackResponseUrl) {
       return Promise.race([
-        resultPromise,
+        promise,
         new Promise(resolve => setTimeout(() => resolve(false), 1500))
       ]).then(outcome => {
         if (outcome === false) {
           console.log('delayed response')
-          const delayedResponse = resultPromise.then(text => {
+          const delayedResponse = promise.then(text => {
             console.log('sending delayed response')
             return fetch(slackResponseUrl, {
               method: 'POST',
@@ -74,7 +69,7 @@ async function handleRequest(event) {
           event.waitUntil(delayedResponse)
           return toResponse({
             response_type: 'ephemeral',
-            text: `Fetching ${scope} for _${linkifyRestaurant(restaurant)}_, just a moment.`
+            text: `Fetching _${scope}_, just a moment.`
           })
         }
 
@@ -84,12 +79,18 @@ async function handleRequest(event) {
     }
 
     console.log('regular response')
-    return resultPromise.then(result => toResponse(createBody(result)))
+    return promise.then(result => toResponse(createBody(result)))
+
   } catch (error) {
+    console.error(error)
     if (error instanceof Response) {
       return error
     }
-    return toResponse(createBody(error), slackResponseUrl ? 200 : error.status || 500)
+    const text = error.message
+    const body = slackResponseUrl
+      ? { response_type: 'ephemeral', text }
+      : text
+    return toResponse(body, slackResponseUrl ? 200 : error.status || 500)
   }
 }
 

@@ -1,6 +1,6 @@
 const selectors = require('./selectors')
 
-const restaurants = [
+const RESTAURANTS = [
   {
     name: 'Austin Food Works',
     aliases: ['afw'],
@@ -27,7 +27,7 @@ const restaurants = [
       // Reformat TITLES
       return `\n*${capitalize(m)}*`
     }),
-    // ignoreRegex: 'VECKANS LUNCH',
+    ignoreRegex: 'VECKANS LUNCH|Dagens lunch',
   },
   {
     name: 'Folkparken',
@@ -43,7 +43,7 @@ const restaurants = [
     selector: selectors.textNodeParent(/Lunch V\./i, selectors.tagName('div')),
     // Correct spacing for day headers (+ switch _ to *)
     formatter: (str) => str.replace(/\n+_([^\n_]+)_\n{1,}/gm, '\n\n*$1*\n'),
-    // ignoreRegex: 'Lunch V',
+    ignoreRegex: 'Lunch V',
   },
   {
     name: 'Knut Restaurant',
@@ -52,13 +52,12 @@ const restaurants = [
     selector: selectors.textNodeParent(/Lunch V\./i, selectors.tagName('div')),
     // Correct spacing for day headers (+ switch _ to *)
     formatter: (str) => str.replace(/\n+_([^\n_]+)_\n{1,}/gm, '\n\n*$1*\n'),
-    // ignoreRegex: 'Lunch V',
+    ignoreRegex: 'Lunch V',
   },
   {
     name: 'Rolfs Kök',
     aliases: ['rk'],
     url: 'http://www.rolfskok.se/meny/Aktuell_lunchmeny.pdf',
-    parse: false,
   },
 ]
 
@@ -67,12 +66,16 @@ function capitalize(str) {
 }
 
 function getRestaurant(query) {
-  const normalizedQuery = query.toLowerCase()
+  const normalizedQuery = query.toLowerCase().trim()
 
-  let target
+  if (!normalizedQuery.length) {
+    return null
+  }
+
+  let target = null
   let minDistance = 9999
 
-  restaurants.forEach(t => [t.name].concat(t.aliases).forEach(term => {
+  RESTAURANTS.forEach(t => [t.name].concat(t.aliases).forEach(term => {
     if (term.toLowerCase().indexOf(normalizedQuery) >= 0) {
       const distance = term.length - normalizedQuery.length
       if (distance < minDistance) {
@@ -86,7 +89,7 @@ function getRestaurant(query) {
 }
 
 function restaurantList() {
-  return restaurants.map(t => {
+  return RESTAURANTS.map(t => {
     return [
       '-',
       linkifyRestaurant(t),
@@ -100,8 +103,8 @@ function linkifyRestaurant(target, text = target.name) {
 }
 
 module.exports = {
+  RESTAURANTS,
   getRestaurant,
-  restaurants,
   restaurantList,
   linkifyRestaurant,
 }

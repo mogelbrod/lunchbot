@@ -10,11 +10,11 @@ const execute = require('./execute')
 const query = process.argv.slice(2).join(' ').trim()
 
 try {
-  const { restaurant, scope, resultPromise } = execute(query)
+  const { scope, promise } = execute(query)
 
-  console.log(`Fetching ${scope} for restaurant '${restaurant.name}'`)
+  console.log(`Fetching ${scope}`)
 
-  resultPromise.then(text => {
+  promise.then(text => {
     console.log('================================\n' + text)
   })
 } catch (error) {

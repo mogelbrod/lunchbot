@@ -20,6 +20,10 @@ const WEEKDAY_REGEX = [
 
 const TARGET_TIMEZONE = 'Europe/Stockholm'
 
+function isWeekDay(input) {
+  return typeof input === 'number' && input >= 0 && input < 7
+}
+
 /** Returns 0-7 for valid weekdays, -1 otherwise */
 function toWeekDay(input) {
   if (input === 'today') {
@@ -41,5 +45,6 @@ module.exports = {
   WEEKDAY_REGEX,
   TARGET_TIMEZONE,
   toWeekDay,
+  isWeekDay,
   weekDay,
 }
