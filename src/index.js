@@ -18,10 +18,8 @@ async function handleRequest(event) {
 
   let query = null
   let slackResponseUrl = null
-  let createBody = text => ({
-    response_type: 'in_channel',
-    text: stringify(text),
-  })
+  // Only show response for triggering user by default
+  let createBody = text => ({ response_type: 'ephemeral', text: stringify(text) })
 
   console.log(request.method, decodeURI(request.url))
 
@@ -38,11 +36,22 @@ async function handleRequest(event) {
         query = json.query
         break
       default:
-        createBody = text => stringify(text)
         query = decodeURI(url.pathname.substr(1)).replace(/[ /]+/g, ' ').trim()
+        if (query.endsWith('.json')) {
+          query = query.replace(/\.json$/, '')
+        } else {
+          createBody = text => stringify(text)
+        }
         if (!query.length) {
           throw new RequestError(`Specify a query via the URL path (ex: /today or /restaurantName)`)
         }
+    }
+
+    // Make `[arg] (post|msg|message)` show response to all instead of only triggering user
+    const POST_SUFFIX_REGEX = /\s+(all|post|msg|message)\s*$/i
+    if (POST_SUFFIX_REGEX.test(query)) {
+      query = query.replace(POST_SUFFIX_REGEX, '')
+      createBody = text => ({ response_type: 'in_channel', text: stringify(text) })
     }
 
     let { scope, promise } = execute(query)
@@ -68,7 +77,6 @@ async function handleRequest(event) {
           })
           event.waitUntil(delayedResponse)
           return toResponse({
-            response_type: 'ephemeral',
             text: `Fetching _${scope}_, just a moment.`
           })
         }
